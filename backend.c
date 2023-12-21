@@ -16,13 +16,19 @@ struct mesg_buffer {
     char mesg_text[100];
 } message;
 
-int main() {
+int main(int argc, char *argv[]) {
     int msgid;
     FILE *fp;
     char path[1000];
 
     // Access the message queue
-    msgid = msgget(MSG_QUEUE_KEY, 0666 | IPC_CREAT);
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <msgid>\n", argv[0]);
+        return 1;
+    }
+
+    // Convert string to msgid
+    msgid = atoi(argv[1]);
 
     while (1) {
         // Receive command from frontend

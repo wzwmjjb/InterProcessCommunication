@@ -9,9 +9,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#define MAX 80
+#define MAX 256
 #define PIPE_PATH "/tmp/myfifo"
-#define MSG_QUEUE_KEY 1234
 
 // Message queue structure
 struct mesg_buffer {
@@ -35,19 +34,28 @@ int main() {
     pid_t pid;
 
     // Create message queue
-    msgid = msgget(MSG_QUEUE_KEY, 0666 | IPC_CREAT);
+    msgid = msgget(IPC_PRIVATE, 0666 | IPC_CREAT);
+    printf("Message queue ID: %d\n", msgid);
+    // Convert msgid to string
+    char msgid_string[10];
+    sprintf(msgid_string, "%d", msgid);
     message.mesg_type = 1;
 
     // Create the named pipe
     mkfifo(PIPE_PATH, 0666);
 
+    // fork
     pid = fork();
-    
+
+    if (pid < 0) {
+        printf("Failed to fork\n");
+        exit(1);
+    }
     if (pid == 0) {
         // Child process
-        execlp("./backend", "./backend", NULL);
+        execl("./backend", "backend", msgid_string, NULL);
         exit(0);
-    } else if (pid > 0) {
+    } else {
         // Parent process
         char input[MAX];
         while (1) {
@@ -71,7 +79,7 @@ int main() {
             int fd = open(PIPE_PATH, O_RDONLY);
             char output[1000];
             read(fd, output, 1000);
-            printf("Output: %s\n", output);
+            printf("Output:\n%s\n", output);
             close(fd);
         }
 
@@ -83,9 +91,6 @@ int main() {
 
         // Remove the named pipe
         unlink(PIPE_PATH);
-    } else {
-        fprintf(stderr, "Fork failed");
-        return 1;
     }
     return 0;
 }
