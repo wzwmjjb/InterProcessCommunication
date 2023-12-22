@@ -41,6 +41,8 @@ int main(int argc, char *argv[]) {
 
         // Execute the command
         fp = popen(message.mesg_text, "r");
+//        printf("Command: %s\n", message.mesg_text);
+//        printf("fp: %p\n", fp);
         if (fp == NULL) {
             printf("Failed to run command\n" );
             exit(1);

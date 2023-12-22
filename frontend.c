@@ -9,7 +9,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#define MAX 256
+#define MAX 128
 #define PIPE_PATH "/tmp/myfifo"
 
 // Message queue structure
@@ -20,13 +20,37 @@ struct mesg_buffer {
 
 // Function to translate Windows commands to Linux commands
 const char *translate_command(const char *command) {
-    if (strcmp(command, "dir") == 0) return "ls";
-    if (strcmp(command, "rename") == 0 || strcmp(command, "move") == 0) return "mv";
-    if (strcmp(command, "del") == 0) return "rm";
-    if (strcmp(command, "cd") == 0)
-        return "pwd";  // Note: 'cd' command will not change the directory of the backend process
-    if (strcmp(command, "exit") == 0) return "exit";
-    return command;
+    char *translatedCommand = malloc(strlen(command) + 1); // Allocate memory for the translated command
+    if (!translatedCommand) {
+        return NULL; // Return NULL if memory allocation fails
+    }
+
+    if (strncmp(command, "dir", 3) == 0) {
+        // Replace 'dir' with 'ls'
+        strcpy(translatedCommand, "ls");
+        strcat(translatedCommand, command + 3); // Append the rest of the command
+    } else if (strncmp(command, "rename", 6) == 0) {
+        // Replace 'rename' with 'mv'
+        strcpy(translatedCommand, "mv");
+        strcat(translatedCommand, command + 6); // Append the rest of the command
+    } else if (strncmp(command, "move", 4) == 0) {
+        // 'move' command is the same as 'mv' in Linux
+        strcpy(translatedCommand, "mv");
+        strcat(translatedCommand, command + 4); // Append the rest of the command
+    } else if (strncmp(command, "del", 3) == 0) {
+        // Replace 'del' with 'rm'
+        strcpy(translatedCommand, "rm");
+        strcat(translatedCommand, command + 3); // Append the rest of the command
+    } else if (strcmp(command, "exit") == 0) {
+        // 'exit' command is the same in both Windows and Linux
+        strcpy(translatedCommand, command);
+    } else {
+        // For commands like 'cd', which are the same in both Windows and Linux
+        printf("The command line is not currently supported :(\n");
+        return NULL;
+    }
+
+    return translatedCommand;
 }
 
 int main() {
@@ -35,7 +59,6 @@ int main() {
 
     // Create message queue
     msgid = msgget(IPC_PRIVATE, 0666 | IPC_CREAT);
-    printf("Message queue ID: %d\n", msgid);
     // Convert msgid to string
     char msgid_string[10];
     sprintf(msgid_string, "%d", msgid);
@@ -43,6 +66,9 @@ int main() {
 
     // Create the named pipe
     mkfifo(PIPE_PATH, 0666);
+
+    printf("MicroSoft Windows\n\n");
+
 
     // fork
     pid = fork();
@@ -59,12 +85,13 @@ int main() {
         // Parent process
         char input[MAX];
         while (1) {
-            printf("Enter command: ");
+            printf("[IN] : ");
             fgets(input, MAX, stdin);
             input[strcspn(input, "\n")] = 0; // Remove newline
 
             // Translate command
             const char *command = translate_command(input);
+            if (command == NULL) continue;
 
             // Send command to backend
             strcpy(message.mesg_text, command);
@@ -79,7 +106,7 @@ int main() {
             int fd = open(PIPE_PATH, O_RDONLY);
             char output[1000];
             read(fd, output, 1000);
-            printf("Output:\n%s\n", output);
+            printf("[OUT] :\n%s\n", output);
             close(fd);
         }
 
