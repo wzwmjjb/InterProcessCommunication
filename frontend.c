@@ -7,7 +7,6 @@
 #include <string.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 
 #define MAX 128
 #define PIPE_PATH "/tmp/myfifo"
