@@ -1,57 +1,67 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/ipc.h>
 #include <sys/msg.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
 
-#define MAX 80
-#define PIPE_PATH "/tmp/myfifo"
-#define MSG_QUEUE_KEY 1234
+#define COMMAND_MAX 128
+#define OUTPUT_MAX 1024
+#define PIPE_PATH "/tmp/my_fifo"
 
 // Message queue structure
-struct mesg_buffer {
-    long mesg_type;
-    char mesg_text[100];
+struct msg_buffer {
+    long msg_type;
+    char msg_text[COMMAND_MAX];
 } message;
 
 int main(int argc, char *argv[]) {
-    int msgid;
+    int msg_id;
     FILE *fp;
-    char path[1000];
+    char path[OUTPUT_MAX];
+    int fd;
 
     // Access the message queue
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <msgid>\n", argv[0]);
         return 1;
     }
 
-    // Convert string to msgid
-    msgid = atoi(argv[1]);
+    // Convert string to msg_id
+    msg_id = atoi(argv[1]);
 
     while (1) {
         // Receive command from frontend
-        msgrcv(msgid, &message, sizeof(message), 1, 0);
+        int status_rcv = msgrcv(msg_id, &message, sizeof(message), message.msg_type, 0);
+        if (status_rcv < 0) {
+            perror("Failed to receive message\n");
+            exit(1);
+        }
 
-        // Exit if command is 'exit'
-        if (strcmp(message.mesg_text, "exit") == 0) {
+        // Exit backend if command is 'exit'
+        if (strcmp(message.msg_text, "exit") == 0) {
             break;
         }
 
         // Execute the command
-        fp = popen(message.mesg_text, "r");
-//        printf("Command: %s\n", message.mesg_text);
-//        printf("fp: %p\n", fp);
+        fp = popen(message.msg_text, "r");
         if (fp == NULL) {
-            printf("Failed to run command\n" );
+            perror("Failed to run command\n");
             exit(1);
         }
 
         // Send output back to frontend
-        int fd = open(PIPE_PATH, O_WRONLY);
+        fd = open(PIPE_PATH, O_WRONLY);
+        if (fd < 0) {
+            perror("Failed to open pipe\n");
+            exit(1);
+        }
+
         while (fgets(path, sizeof(path), fp) != NULL) {
-            write(fd, path, strlen(path));
+            ssize_t bytes_written = write(fd, path, strlen(path));
+            if (bytes_written < 0) {
+                perror("Failed to write to pipe\n");
+                exit(1);
+            }
         }
         close(fd);
         pclose(fp);
