@@ -27,35 +27,56 @@ const char *translate_command(const char *command) {
 
     if (strncmp(command, "dir", 3) == 0) {
         // dir -> ls
+        // dir /home -> ls /home
         strcpy(translatedCommand, "ls");
-        strcat(translatedCommand, command + 3); // Append the rest of the command
+        strcat(translatedCommand, command + 3);
     } else if (strncmp(command, "rename", 6) == 0) {
         // rename -> mv
+        // rename test.c tst.c -> mv test.c tst.c
         strcpy(translatedCommand, "mv");
         strcat(translatedCommand, command + 6);
-    } else if (strncmp(command, "cd", 2) == 0) {
-        // cd -> cd(pwd)
-        strcpy(translatedCommand, "pwd");
-        strcat(translatedCommand, command + 2);
     } else if (strncmp(command, "move", 4) == 0) {
         // move -> mv
+        // move tst.c empty_folder -> mv tst.c empty_folder
         strcpy(translatedCommand, "mv");
         strcat(translatedCommand, command + 4);
     } else if (strncmp(command, "del", 3) == 0) {
         // del -> rm
+        // del empty_folder/tst.c -> rm empty_folder/tst.c
         strcpy(translatedCommand, "rm");
         strcat(translatedCommand, command + 3);
+    } else if (strcmp(command, "cd") == 0) {
+        // cd -> cd(pwd)
+        strcpy(translatedCommand, "pwd");
+    } else if (strncmp(command, "mkdir", 5) == 0) {
+        // mkdir -> mkdir
+        // mkdir empty2 -> mkdir empty2
+        strcpy(translatedCommand, "mkdir");
+        strcat(translatedCommand, command + 5);
+    } else if (strncmp(command, "rmdir", 5) == 0) {
+        // rmdir -> rm -r
+        // rmdir empty2 -> rm -r empty2
+        strcpy(translatedCommand, "rm -r");
+        strcat(translatedCommand, command + 5);
+    } else if (strcmp(command, "date") == 0) {
+        // date -> date
+        strcpy(translatedCommand, "date");
+    } else if (strncmp(command, "cls", 3) == 0) {
+        // cls -> clear
+        strcpy(translatedCommand, "clear");
     } else if (strcmp(command, "exit") == 0) {
         // exit -> exit
         strcpy(translatedCommand, command);
     } else {
         // Command not supported
-        printf("\033[31mThe command line is not currently supported :(\033[0m\n");
+        printf("\033[31mThis command is not currently supported :(\033[0m\n");
+        free(translatedCommand); // Free the allocated memory for unsupported command
         return NULL;
     }
     printf("\033[32m[IN_LINUX]\033[0m: %s\n", translatedCommand);
     return translatedCommand;
 }
+
 
 // Remove pipe if it exists
 void remove_pipe() {
@@ -69,12 +90,12 @@ int main() {
     int msg_id;
     pid_t pid;
 
-    printf("\033[32mMicroSoft Windows\033[0m\n\n");
+    printf("\033[32mMini Windows\033[0m\n\n");
 
     // Create message queue
     msg_id = msgget(IPC_PRIVATE, 0666 | IPC_CREAT);
     if (msg_id < 0) {
-        perror("Failed to create message queue\n");
+        perror("Failed to create a message queue\n");
         exit(1);
     }
     // Convert msg_id to string
@@ -86,9 +107,9 @@ int main() {
     remove_pipe();
 
     // Create the named pipe
-    int status = mkfifo(PIPE_PATH, 0666);
-    if (status < 0) {
-        perror("Failed to create named pipe\n");
+    int mk_fifo_status = mkfifo(PIPE_PATH, 0666);
+    if (mk_fifo_status < 0) {
+        perror("Failed to create a named pipe\n");
         exit(1);
     }
 
@@ -118,7 +139,11 @@ int main() {
             }
             // Send command to backend
             strcpy(message.msg_text, command);
-            msgsnd(msg_id, &message, sizeof(message), 0);
+            int msg_snd_status = msgsnd(msg_id, &message, sizeof(message), 0);
+            if (msg_snd_status < 0) {
+                perror("Failed to send a message\n");
+                exit(1);
+            }
 
             // Exit frontend if command is 'exit'
             if (strcmp(command, "exit") == 0) {
@@ -128,7 +153,7 @@ int main() {
             // Read response from backend
             int fd = open(PIPE_PATH, O_RDONLY);
             if (fd < 0) {
-                perror("Failed to open pipe\n");
+                perror("Failed to open a pipe\n");
                 exit(1);
             }
             char output[OUTPUT_MAX];

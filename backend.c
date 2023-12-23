@@ -31,8 +31,8 @@ int main(int argc, char *argv[]) {
 
     while (1) {
         // Receive command from frontend
-        int status_rcv = msgrcv(msg_id, &message, sizeof(message), message.msg_type, 0);
-        if (status_rcv < 0) {
+        int msg_rcv_status = msgrcv(msg_id, &message, sizeof(message), message.msg_type, 0);
+        if (msg_rcv_status < 0) {
             perror("Failed to receive message\n");
             exit(1);
         }
