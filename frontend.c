@@ -45,9 +45,10 @@ const char *translate_command(const char *command) {
         // del empty_folder/tst.c -> rm empty_folder/tst.c
         strcpy(translatedCommand, "rm");
         strcat(translatedCommand, command + 3);
-    } else if (strcmp(command, "cd") == 0) {
+    } else if (strncmp(command, "cd", 2) == 0) {
         // cd -> cd(pwd)
-        strcpy(translatedCommand, "pwd");
+        strcpy(translatedCommand, "cd");
+        strcat(translatedCommand, command + 2);
     } else if (strncmp(command, "mkdir", 5) == 0) {
         // mkdir -> mkdir
         // mkdir empty2 -> mkdir empty2
@@ -137,6 +138,7 @@ int main() {
             if (command == NULL) {
                 continue;
             }
+
             // Send command to backend
             strcpy(message.msg_text, command);
             int msg_snd_status = msgsnd(msg_id, &message, sizeof(message), 0);
@@ -164,6 +166,16 @@ int main() {
                 printf("%s", output);
             }
             close(fd);
+
+            if (strcmp(command, "cd") == 0) {
+                chdir(getenv("HOME"));
+            } else if (strncmp(command, "cd", 2) == 0) {
+                // Handle cd command here
+                const char *dir = command + 3; // Extract directory path
+                if (chdir(dir) != 0) {
+                    perror("chdir failed");
+                }
+            }
         }
 
         // Wait for child process to finish

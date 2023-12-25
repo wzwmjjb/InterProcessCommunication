@@ -43,7 +43,16 @@ int main(int argc, char *argv[]) {
         }
 
         // Execute the command
-        fp = popen(message.msg_text, "r");
+        if (strcmp(message.msg_text, "cd") == 0) {
+            chdir(getenv("HOME"));
+            fp = popen("pwd", "r");
+        } else if (strncmp(message.msg_text, "cd", 2) == 0) {
+            chdir(message.msg_text + 3);
+            fp = popen("pwd", "r");
+        } else {
+            fp = popen(message.msg_text, "r");
+        }
+
         if (fp == NULL) {
             perror("Failed to run command\n");
             exit(1);
